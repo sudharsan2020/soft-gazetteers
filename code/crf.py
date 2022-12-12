@@ -18,7 +18,7 @@ CONST_INIT = -1e10
 class CRFModule:
     def __init__(self, model, tag_vocab):
         self.tag_vocab = tag_vocab
-        self.tag_lookup = dict((v, k) for k, v in tag_vocab.items())
+        self.tag_lookup = {v: k for k, v in tag_vocab.items()}
         self.begin_tag = len(tag_vocab)
         self.end_tag = len(tag_vocab) + 1
         self.num_tags = len(tag_vocab) + 2

@@ -26,11 +26,7 @@ class SoftGazFeatureCreator(object):
         else:
             self.feats = feat_types
 
-        if epilang:
-            self.epi = epitran.Epitran(epilang)
-        else:
-            self.epi = None
-
+        self.epi = epitran.Epitran(epilang) if epilang else None
         self.normalize = normalize
 
         type_codes = {"LOC": LOC, "PER": PER, "ORG": ORG, "GPE": LOC}
@@ -102,11 +98,7 @@ class SoftGazFeatureCreator(object):
                     for j, context_g in enumerate(contexts):
 
                         # Convert context to IPA if the candidates are in IPA
-                        if self.epi:
-                            context = self.epi.transliterate(context_g)
-                        else:
-                            context = context_g
-
+                        context = self.epi.transliterate(context_g) if self.epi else context_g
                         if (
                             context not in self.ngram_candidates
                             or not context
@@ -230,7 +222,7 @@ if __name__ == "__main__":
     )
 
     inputfile_feats = feature_creator.create_features(conll_file=args.conll_file)
-    output_name = args.conll_file + ".softgazfeats"
+    output_name = f"{args.conll_file}.softgazfeats"
 
     # Save sentence-wise list of features as compressed numpy array; number of rows = number of sentences in the input file
     # Each row is a list of feature vectors (one for each word). The size of the list is the number of words in the sentence.

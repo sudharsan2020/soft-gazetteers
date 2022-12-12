@@ -9,6 +9,7 @@ Soft Gazetteers for Low-Resource Named Entity Recognition (ACL 2020)
 https://www.aclweb.org/anthology/2020.acl-main.722
 """
 
+
 from collections import defaultdict
 import argparse
 
@@ -46,12 +47,12 @@ if __name__ == "__main__":
                 docx[doc_id] = True
             else:
                 doc_ids[doc_id] = False
-            doc[doc_id + "@@" + start] = end + "@@" + tag + "@@" + tokens[4]
+            doc[f"{doc_id}@@{start}"] = f"{end}@@{tag}@@{tokens[4]}"
 
     fout = open(output, "w", encoding="utf-8")
 
     # Pruned filelist of annotations that exist in the gold file
-    with open(filelist + ".clean", "w") as f:
+    with open(f"{filelist}.clean", "w") as f:
         for doc_id, val in doc_ids.items():
             if not val:
                 f.write(doc_id + "\n")
@@ -66,12 +67,17 @@ if __name__ == "__main__":
         for line in fin:
             line = line.strip()
 
-            if line == "" or line == "\n":
-                if present:
-                    fout.write("\n")
-            else:
+            if (
+                line == ""
+                and present
+                or line != ""
+                and line == "\n"
+                and present
+            ):
+                fout.write("\n")
+            elif line not in ["", "\n"]:
                 tokens = line.split()
-                assert len(tokens) == 10 or len(tokens) == 11
+                assert len(tokens) in {10, 11}
                 token = tokens[0]
                 doc_id = tokens[3]
                 start = tokens[6]
@@ -86,23 +92,23 @@ if __name__ == "__main__":
                     continue
 
                 present = True
-                key = doc_id + "@@" + start
+                key = f"{doc_id}@@{start}"
 
                 if key in doc:
                     end_pos = doc[key].split("@@")[0]
                     tag = doc[key].split("@@")[1]
-                    fout.write(token + " " + doc_id + " " + "B-" + tag + "\n")
+                    fout.write(f"{token} {doc_id} B-{tag}" + "\n")
                     inEntity = True
                     cur_doc = doc_id
 
                 elif inEntity and end_pos != -1 and tag != "" and doc_id == cur_doc:
                     if int(end) <= int(end_pos):
-                        fout.write(token + " " + doc_id + " " + "I-" + tag + "\n")
+                        fout.write(f"{token} {doc_id} I-{tag}" + "\n")
                     else:
-                        fout.write(token + " " + doc_id + " " + "O" + "\n")
+                        fout.write(f"{token} {doc_id} O" + "\n")
                         inEntity = False
                         tag = ""
                         end_pos = -1
 
                 else:
-                    fout.write(token + " " + doc_id + " " + "O" + "\n")
+                    fout.write(f"{token} {doc_id} O" + "\n")

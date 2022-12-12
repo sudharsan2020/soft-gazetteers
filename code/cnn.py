@@ -48,5 +48,4 @@ class CNNModule(object):
             embs, W_cnn, b_cnn, stride=(1, 1), is_valid=False
         )  # maybe change this? diagram shows padding
         max_pool = dy.max_dim(cnn_out, d=1)
-        rep = dy.reshape(dy.tanh(max_pool), (self.filter_size,))
-        return rep
+        return dy.reshape(dy.tanh(max_pool), (self.filter_size,))

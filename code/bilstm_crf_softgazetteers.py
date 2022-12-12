@@ -75,8 +75,8 @@ class NERTagger(object):
         self.dev_data = self.read_test(dev_file, dev_features)
         self.test_data = self.read_test(test_file, test_features)
         self.batch_size = batch_size
-        self.reverse_tag_lookup = dict((v, k) for k, v in self.tag_vocab.items())
-        self.reverse_word_lookup = dict((v, k) for k, v in self.word_vocab.items())
+        self.reverse_tag_lookup = {v: k for k, v in self.tag_vocab.items()}
+        self.reverse_word_lookup = {v: k for k, v in self.word_vocab.items()}
 
         self.model = dy.ParameterCollection()
 
@@ -222,16 +222,14 @@ class NERTagger(object):
 
     def word_to_int(self, word):
         word = DIGIT_RE.sub("0", word)
-        if word in self.word_vocab:
-            return self.word_vocab[word]
-        else:
+        if word not in self.word_vocab:
             vec = np.random.uniform(
                 low=-np.sqrt(3.0 / self.embed_size),
                 high=np.sqrt(3.0 / self.embed_size),
                 size=(self.embed_size,),
             )
             self.word_lookup.append(vec.tolist())
-            return self.word_vocab[word]
+        return self.word_vocab[word]
 
     # Get tag ID
     def lookup_tag(self, tag_id):
@@ -264,10 +262,7 @@ class NERTagger(object):
             word_feats = [dy.rectify(feat) for feat in word_feats]
 
         # Soft gazetteer features at the LSTM level
-        if self.lstm_feats:
-            cur_feats = word_feats
-        else:
-            cur_feats = zero_feats
+        cur_feats = word_feats if self.lstm_feats else zero_feats
         word_reps = [
             dy.concatenate(
                 [self.cnn.encode(chars, training), self.word_embeds[word], enc_feat]
@@ -278,11 +273,7 @@ class NERTagger(object):
         contexts = self.word_lstm.transduce(word_reps)
 
         # Soft gazetteer features at the CRF level
-        if self.crf_feats:
-            cur_feats = word_feats
-        else:
-            cur_feats = zero_feats
-
+        cur_feats = word_feats if self.crf_feats else zero_feats
         features = [
             dy.affine_transform(
                 [
@@ -319,7 +310,7 @@ class NERTagger(object):
             ]
         else:
             feat_reconstruct = [
-                dy.inputTensor(np.zeros(shape=(self.featsize,))) for context in contexts
+                dy.inputTensor(np.zeros(shape=(self.featsize,))) for _ in contexts
             ]
 
         return features, t_features, feat_reconstruct
@@ -374,9 +365,8 @@ class NERTagger(object):
         for ep in range(epochs):
             logging.info("Epoch: %d" % ep)
             ep_loss = 0
-            num_batches = 0
             random.shuffle(self.training_data)
-            for i in range(0, len(self.training_data), self.batch_size):
+            for num_batches, i in enumerate(range(0, len(self.training_data), self.batch_size)):
                 if num_batches % check_val == 0:
                     v_acc = self.get_accuracy(self.dev_data, print_out="dev.temp.")
                     logging.info("Validation F1: %f" % v_acc)
@@ -391,7 +381,6 @@ class NERTagger(object):
                 ep_loss += loss.scalar_value()
                 loss.backward()
                 trainer.update()
-                num_batches += 1
             logging.info("Training loss: %f" % ep_loss)
             if (ep - best_ep) > end_patience:
                 self.model.populate(self.model_file)
@@ -402,7 +391,7 @@ class NERTagger(object):
                 # best_ep = ep
                 lr = trainer.learning_rate / 1.05
                 trainer.learning_rate = lr
-                logging.info("New learning rate: " + str(lr))
+                logging.info(f"New learning rate: {str(lr)}")
             logging.info("\n")
 
     def get_accuracy(self, sents, print_out="temp."):
@@ -420,21 +409,15 @@ class NERTagger(object):
             for sent, output in zip(sents, outputs):
                 for (_, word, _, tag), pred_tag in zip(sent, output):
                     out.write(
-                        self.lookup_word(word)
-                        + " "
-                        + self.lookup_tag(tag).upper()
-                        + " "
-                        + self.lookup_tag(pred_tag).upper()
+                        f"{self.lookup_word(word)} {self.lookup_tag(tag).upper()} {self.lookup_tag(pred_tag).upper()}"
                         + "\n"
                     )
                 out.write("\n")
             out.write("\n")
 
-        cmd = "cat " + outfile + " | " + "./conlleval_f1"
+        cmd = f"cat {outfile} | ./conlleval_f1"
         process = Popen(cmd, stdout=PIPE, stdin=PIPE, shell=True)
-        f1 = float(process.communicate()[0].strip())
-
-        return f1
+        return float(process.communicate()[0].strip())
 
 
 if __name__ == "__main__":

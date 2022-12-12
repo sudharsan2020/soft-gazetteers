@@ -13,10 +13,12 @@ import argparse
 
 
 def ngrams_from_start_index(word_list, start_index, max_len):
-    ngrams = {}
-    for i in range(start_index + 1, min(start_index + max_len + 1, len(word_list) + 1)):
-        ngrams[" ".join(word_list[start_index:i])] = True
-    return ngrams
+    return {
+        " ".join(word_list[start_index:i]): True
+        for i in range(
+            start_index + 1, min(start_index + max_len + 1, len(word_list) + 1)
+        )
+    }
 
 
 if __name__ == "__main__":
@@ -38,16 +40,16 @@ if __name__ == "__main__":
         with open(filen, "r", encoding="utf8") as f:
             for line in f:
                 if line == "\n":
-                    for i in range(0, len(sent)):
-                        ngrams.update(ngrams_from_start_index(sent, i, max_len))
+                    for i in range(len(sent)):
+                        ngrams |= ngrams_from_start_index(sent, i, max_len)
                     sent = []
                     continue
                 spl = line.strip().split()
                 sent.append(spl[0])
-        for i in range(0, len(sent)):
+        for i in range(len(sent)):
             ngrams.update(ngrams_from_start_index(sent, i, max_len))
         sent = []
 
     with open(args.output, "w", encoding="utf8") as out:
-        for k, v in ngrams.items():
+        for k in ngrams:
             out.write(k + "\n")
